@@ -1,100 +1,95 @@
+import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
-import { FlatList, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import {
+  FlatList,
+  Pressable,
+  RefreshControl,
+  ScrollView,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { patrimoineApi } from '../../src/api/patrimoine.api';
 import { SiteCard } from '../../src/components/cards/SiteCard';
 import { SkeletonCard } from '../../src/components/ui/SkeletonCard';
+import { SitePatrimoine } from '../../src/types/patrimoine.types';
 
-interface SitePatrimoine {
-  id_lieu: number;
-  nom: string | { fr?: string; ar?: string; en?: string };
-  typePatrimoine?: string;
-  mainImage?: string;
-  wilaya?: { id_wilaya: number; nom: string };
-}
-
+// Types de filtres
 const TYPES = [
   { key: '', label: 'Tous' },
-  { key: 'ville_village', label: 'Villes' },
-  { key: 'monument', label: 'Monuments' },
-  { key: 'site_archeologique', label: 'Vestiges' },
-  { key: 'site_naturel', label: 'Nature' },
-];
-
-const MOCK_SITES: SitePatrimoine[] = [
-  {
-    id_lieu: 1,
-    nom: "Casbah d'Alger",
-    typePatrimoine: 'monument',
-    mainImage: 'https://via.placeholder.com/400x200',
-    wilaya: { id_wilaya: 16, nom: 'Alger' }
-  },
-  {
-    id_lieu: 2,
-    nom: 'Timgad',
-    typePatrimoine: 'site_archeologique',
-    mainImage: 'https://via.placeholder.com/400x200',
-    wilaya: { id_wilaya: 5, nom: 'Batna' }
-  },
-  {
-    id_lieu: 3,
-    nom: 'Tipaza',
-    typePatrimoine: 'site_archeologique',
-    mainImage: 'https://via.placeholder.com/400x200',
-    wilaya: { id_wilaya: 42, nom: 'Tipaza' }
-  },
+  { key: 'ville_village', label: '🏘 Villes' },
+  { key: 'monument', label: '🏛 Monuments' },
+  { key: 'musee', label: '🏛️ Musées' },
+  { key: 'site_archeologique', label: '🪨 Vestiges' },
+  { key: 'site_naturel', label: '🌿 Nature' },
+  { key: 'edifice_religieux', label: '⛪ Religieux' },
+  { key: 'palais_forteresse', label: '🏰 Palais' },
 ];
 
 export default function ExplorerScreen() {
   const [selectedType, setSelectedType] = useState('');
   const [search, setSearch] = useState('');
 
-  const isLoading = false;
-  const sites = MOCK_SITES;
+  // Récupération des données depuis l'API
+  const {
+    data,
+    isLoading,
+    refetch,
+    isRefetching,
+  } = useQuery({
+    queryKey: ['patrimoine', selectedType],
+    queryFn: () => patrimoineApi.list({ type: selectedType || undefined }),
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  });
 
+  const sites = data?.data?.data ?? [];
+
+  // Filtrage par recherche (frontend)
   const filtered = search.trim()
-    ? sites.filter(s => {
-        const nom = typeof s.nom === 'string' ? s.nom : s.nom?.fr || '';
+    ? sites.filter((site: SitePatrimoine) => {
+        const nom = typeof site.nom === 'string' ? site.nom : site.nom?.fr || '';
         return nom.toLowerCase().includes(search.toLowerCase());
       })
     : sites;
 
-  const filteredByType = selectedType
-    ? filtered.filter(s => s.typePatrimoine === selectedType)
-    : filtered;
-
   return (
     <SafeAreaView className="flex-1 bg-gray-50">
+      {/* En-tête */}
       <View className="px-4 pt-4 pb-2">
         <Text className="text-2xl font-bold text-gray-900 mb-3">Explorer</Text>
 
+        {/* Barre de recherche */}
         <TextInput
-          className="bg-white border border-gray-200 rounded-xl px-4 py-3 mb-3"
-          placeholder="Rechercher un site..."
+          className="bg-white border border-gray-200 rounded-xl px-4 py-3 mb-3 text-base"
+          placeholder="🔍 Rechercher un site..."
           value={search}
           onChangeText={setSearch}
         />
 
-        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+        {/* Filtres par type */}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          className="mb-1"
+        >
           {TYPES.map((type) => {
             const isSelected = selectedType === type.key;
             return (
               <Pressable
                 key={type.key}
                 onPress={() => setSelectedType(type.key)}
-                style={{
-                  marginRight: 8,
-                  paddingHorizontal: 16,
-                  paddingVertical: 8,
-                  borderRadius: 999,
-                  borderWidth: 1,
-                  borderColor: isSelected ? '#1B6CA8' : '#e5e7eb',
-                  backgroundColor: isSelected ? '#1B6CA8' : 'white',
-                }}
+                className={`mr-2 px-4 py-2 rounded-full border ${
+                  isSelected
+                    ? 'bg-primary border-primary'
+                    : 'bg-white border-gray-200'
+                }`}
               >
-                <Text style={{
-                  color: isSelected ? 'white' : '#374151',
-                  fontWeight: isSelected ? '600' : '400',
-                }}>
+                <Text
+                  className={
+                    isSelected ? 'text-white font-medium' : 'text-gray-700'
+                  }
+                >
                   {type.label}
                 </Text>
               </Pressable>
@@ -103,21 +98,34 @@ export default function ExplorerScreen() {
         </ScrollView>
       </View>
 
+      {/* Liste des sites */}
       <FlatList
-        data={isLoading ? Array(4).fill(null) : filteredByType}
-        keyExtractor={(item, i) => item ? String(item.id_lieu) : String(i)}
+        data={isLoading ? Array(6).fill(null) : filtered}
+        keyExtractor={(item, index) =>
+          item ? String(item.id_lieu) : `skeleton-${index}`
+        }
         contentContainerStyle={{ padding: 16, paddingTop: 8 }}
+        refreshControl={
+          <RefreshControl refreshing={isRefetching} onRefresh={refetch} />
+        }
         renderItem={({ item }) =>
-          isLoading || !item
-            ? <SkeletonCard />
-            : <SiteCard site={item} />
+          isLoading || !item ? (
+            <SkeletonCard />
+          ) : (
+            <SiteCard site={item} />
+          )
         }
         ListEmptyComponent={
           <View className="items-center py-16">
-            <Text className="text-4xl mb-3">🏛</Text>
-            <Text className="text-gray-500 text-center">Aucun site trouvé</Text>
+            <Text className="text-4xl mb-3">🏛️</Text>
+            <Text className="text-gray-500 text-center">
+              {search.trim()
+                ? 'Aucun site ne correspond à votre recherche'
+                : 'Aucun site trouvé'}
+            </Text>
           </View>
         }
+        showsVerticalScrollIndicator={false}
       />
     </SafeAreaView>
   );
