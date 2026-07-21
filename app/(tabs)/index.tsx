@@ -14,7 +14,6 @@ const RAYONS = [
   { km: 50, label: '50 km' },
 ];
 
-// Position par défaut : Alger
 const DEFAULT_REGION = {
   latitude: 36.7538,
   longitude: 3.0588,
@@ -46,7 +45,6 @@ export default function MapScreen() {
     );
   };
 
-  // Chargement de la localisation
   if (locLoading) {
     return (
       <SafeAreaView className="flex-1 bg-white items-center justify-center">
@@ -67,7 +65,6 @@ export default function MapScreen() {
 
   return (
     <View className="flex-1">
-      {/* Carte */}
       <MapView
         ref={mapRef}
         provider={PROVIDER_GOOGLE}
@@ -81,7 +78,6 @@ export default function MapScreen() {
         ))}
       </MapView>
 
-      {/* Filtres rayon - en haut */}
       <View className="absolute top-14 left-0 right-0 px-4">
         <ScrollView horizontal showsHorizontalScrollIndicator={false}>
           {RAYONS.map((r) => {
@@ -117,7 +113,6 @@ export default function MapScreen() {
         </ScrollView>
       </View>
 
-      {/* Compteur de sites */}
       <View className="absolute top-28 right-4">
         <View
           style={{
@@ -142,7 +137,6 @@ export default function MapScreen() {
         </View>
       </View>
 
-      {/* Bouton Ma position */}
       <Pressable
         style={{
           position: 'absolute',
